@@ -10,52 +10,39 @@ document.addEventListener('DOMContentLoaded', () => {
     1: 'string',
     2: 'string',
     3: 'number',
-    4: 'salary',
+    4: 'salary'
   };
 
   let currentSort = { index: null, dir: 'asc' };
   let editing = null;
 
-  // ---------- Helpers ----------
+  //Helpers
   const parseCellValue = (cell, colIndex) => {
     const text = cell.textContent.trim();
     const type = colTypes[colIndex];
-
-    if (type === 'number') {
-      return Number(text);
-    }
-
-    if (type === 'salary') {
-      return Number(text.replace(/[$,]/g, ''));
-    }
-
+    if (type === 'number') return Number(text);
+    if (type === 'salary') return Number(text.replace(/[$,]/g, ''));
     return text.toLowerCase();
   };
 
   const formatSalary = (value) => {
     const num = Number(value);
-
     return isNaN(num) ? value : '$' + Math.round(num).toLocaleString('en-US');
   };
 
-  // ---------- Notifications ----------
+  //Notifications
   const showNotification = (title, text, type = 'success') => {
-    document
-      .querySelectorAll('[data-qa="notification"]')
-      .forEach((n) => n.remove());
+    document.querySelectorAll('[data-qa="notification"]').forEach((n) => n.remove());
 
     const note = document.createElement('div');
-
     note.classList.add('notification', type);
     note.setAttribute('data-qa', 'notification');
 
     const titleEl = document.createElement('span');
-
     titleEl.classList.add('title');
     titleEl.textContent = title;
 
     const desc = document.createElement('div');
-
     desc.textContent = text;
 
     note.append(titleEl, desc);
@@ -64,7 +51,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => note.remove(), 3000);
   };
 
-  // ---------- Sorting ----------
+  //Sorting
   const sortByColumn = (index, dir) => {
     const rows = Array.from(tbody.rows);
 
@@ -75,13 +62,10 @@ document.addEventListener('DOMContentLoaded', () => {
       if (typeof aVal === 'number' && typeof bVal === 'number') {
         return aVal - bVal;
       }
-
       return aVal.localeCompare(bVal);
     });
 
-    if (dir === 'desc') {
-      rows.reverse();
-    }
+    if (dir === 'desc') rows.reverse();
 
     tbody.innerHTML = '';
     rows.forEach((r) => tbody.appendChild(r));
@@ -90,11 +74,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   thead.addEventListener('click', (e) => {
     const th = e.target.closest('th');
-
-    if (!th) {
-      return;
-    }
-
+    if (!th) return;
     const index = Array.from(th.parentElement.children).indexOf(th);
 
     if (currentSort.index === index) {
@@ -106,12 +86,11 @@ document.addEventListener('DOMContentLoaded', () => {
     sortByColumn(index, currentSort.dir);
   });
 
-  // ---------- Inline Edit ----------
+  //Inline Edit
   const startEdit = (cell) => {
     // if another edit exists, commit it before starting new one
     if (editing) {
       const existingInput = editing.cell.querySelector('.cell-input');
-
       if (existingInput) {
         commitEdit(existingInput);
       }
@@ -119,7 +98,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const old = cell.textContent.trim();
     const input = document.createElement('input');
-
     input.classList.add('cell-input');
     input.value = old;
 
@@ -131,20 +109,21 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   const commitEdit = (inputEl) => {
-    if (!editing) {
-      return;
-    }
+    if (!editing) return;
 
     const { cell, old } = editing;
     const newVal = inputEl.value.trim();
     const col = Array.from(cell.parentElement.children).indexOf(cell);
 
-    let final = newVal || old;
+    let final = old;
 
-    if (col === 4) {
-      const n = Number(newVal.replace(/[$,]/g, ''));
-
-      final = Number.isFinite(n) ? formatSalary(n) : old;
+    if (newVal !== '') {
+      if (col === 4) {
+        const n = Number(newVal.replace(/[$,]/g, ''));
+        final = Number.isFinite(n) ? formatSalary(n) : old;
+      } else {
+        final = newVal;
+      }
     }
 
     cell.textContent = final;
@@ -152,23 +131,17 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   const cancelEdit = () => {
-    if (!editing) {
-      return;
-    }
-
+    if (!editing) return;
     const { cell, old } = editing;
-
     cell.textContent = old;
     editing = null;
   };
 
-  // ---------- Row Selection ----------
+  //Row Selection
   const attachRowListeners = () => {
     tbody.querySelectorAll('tr').forEach((row) => {
       row.onclick = () => {
-        tbody
-          .querySelectorAll('tr')
-          .forEach((r) => r.classList.remove('active'));
+        tbody.querySelectorAll('tr').forEach((r) => r.classList.remove('active'));
         row.classList.add('active');
       };
 
@@ -177,25 +150,16 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     });
   };
-
   attachRowListeners();
 
   // handle blur / enter / escape globally for inline edits
   document.addEventListener('keydown', (e) => {
     if (editing) {
       const input = document.querySelector('.cell-input');
+      if (!input) return;
 
-      if (!input) {
-        return;
-      }
-
-      if (e.key === 'Enter') {
-        commitEdit(input);
-      }
-
-      if (e.key === 'Escape') {
-        cancelEdit();
-      }
+      if (e.key === 'Enter') commitEdit(input);
+      if (e.key === 'Escape') cancelEdit();
     }
   });
 
@@ -206,14 +170,12 @@ document.addEventListener('DOMContentLoaded', () => {
         commitEdit(e.target);
       }
     },
-    true,
+    true
   );
 
-  // ---------- Form ----------
+  //Form
   const form = document.createElement('form');
-
   form.classList.add('new-employee-form');
-
   form.innerHTML = `
     <label>Name: <input data-qa="name" name="name" type="text" /></label>
     <label>Position: <input data-qa="position" name="position" type="text" /></label>
@@ -237,39 +199,53 @@ document.addEventListener('DOMContentLoaded', () => {
   form.addEventListener('submit', (e) => {
     e.preventDefault();
 
-    const pName = form.querySelector('[data-qa="name"]').value.trim();
-    const position = form.querySelector('[data-qa="position"]').value.trim();
-    const office = form.querySelector('[data-qa="office"]').value.trim();
-    const age = Number(form.querySelector('[data-qa="age"]').value);
-    const salary = Number(form.querySelector('[data-qa="salary"]').value);
+    const nameInput = form.querySelector('[data-qa="name"]');
+    const positionInput = form.querySelector('[data-qa="position"]');
+    const officeInput = form.querySelector('[data-qa="office"]');
+    const ageInput = form.querySelector('[data-qa="age"]');
+    const salaryInput = form.querySelector('[data-qa="salary"]');
 
-    const textMissing = pName === '' || position === '' || office === '';
-    const numberInvalid = !Number.isFinite(age) || !Number.isFinite(salary);
+    const nameStr = nameInput.value.trim();
+    const positionStr = positionInput.value.trim();
+    const officeStr = officeInput.value.trim();
+    const ageStr = ageInput.value.trim();
+    const salaryStr = salaryInput.value.trim();
 
-    if (textMissing || numberInvalid) {
+    // Explicit empty check for text and numeric fields
+    if (
+      nameStr === '' ||
+      positionStr === '' ||
+      officeStr === '' ||
+      ageStr === '' ||
+      salaryStr === ''
+    ) {
       showNotification('Error', 'All fields are required.', 'error');
-
       return;
     }
 
-    if (pName.length < 4) {
-      showNotification('Error', 'Name must have at least 4 letters.', 'error');
+    const age = Number(ageStr);
+    const salary = Number(salaryStr);
 
+    if (!Number.isFinite(age) || !Number.isFinite(salary)) {
+      showNotification('Error', 'Age and salary must be valid numbers.', 'error');
+      return;
+    }
+
+    if (nameStr.length < 4) {
+      showNotification('Error', 'Name must have at least 4 letters.', 'error');
       return;
     }
 
     if (age < 18 || age > 90) {
       showNotification('Error', 'Age must be between 18 and 90.', 'error');
-
       return;
     }
 
     const tr = document.createElement('tr');
-
     tr.innerHTML = `
-      <td>${pName}</td>
-      <td>${position}</td>
-      <td>${office}</td>
+      <td>${nameStr}</td>
+      <td>${positionStr}</td>
+      <td>${officeStr}</td>
       <td>${age}</td>
       <td>${formatSalary(salary)}</td>
     `;
@@ -277,7 +253,7 @@ document.addEventListener('DOMContentLoaded', () => {
     tbody.appendChild(tr);
     attachRowListeners();
 
-    showNotification('Success', `${pName} was added successfully.`, 'success');
+    showNotification('Success', `${nameStr} was added successfully.`, 'success');
     form.reset();
   });
 });
