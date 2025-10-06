@@ -14,8 +14,9 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   let currentSort = { index: null, dir: 'asc' };
+  let editing = null;
 
-  //Helpers
+  // ---------- Helpers ----------
   const parseCellValue = (cell, colIndex) => {
     const text = cell.textContent.trim();
     const type = colTypes[colIndex];
@@ -37,7 +38,7 @@ document.addEventListener('DOMContentLoaded', () => {
     return isNaN(num) ? value : '$' + Math.round(num).toLocaleString('en-US');
   };
 
-  //Notifications
+  // ---------- Notifications ----------
   const showNotification = (title, text, type = 'success') => {
     document
       .querySelectorAll('[data-qa="notification"]')
@@ -63,7 +64,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => note.remove(), 3000);
   };
 
-  //Sorting
+  // ---------- Sorting ----------
   const sortByColumn = (index, dir) => {
     const rows = Array.from(tbody.rows);
 
@@ -105,7 +106,63 @@ document.addEventListener('DOMContentLoaded', () => {
     sortByColumn(index, currentSort.dir);
   });
 
-  //Row Selection
+  // ---------- Inline Edit ----------
+  const startEdit = (cell) => {
+    // if another edit exists, commit it before starting new one
+    if (editing) {
+      const existingInput = editing.cell.querySelector('.cell-input');
+
+      if (existingInput) {
+        commitEdit(existingInput);
+      }
+    }
+
+    const old = cell.textContent.trim();
+    const input = document.createElement('input');
+
+    input.classList.add('cell-input');
+    input.value = old;
+
+    cell.textContent = '';
+    cell.appendChild(input);
+    input.focus();
+
+    editing = { cell, old };
+  };
+
+  const commitEdit = (inputEl) => {
+    if (!editing) {
+      return;
+    }
+
+    const { cell, old } = editing;
+    const newVal = inputEl.value.trim();
+    const col = Array.from(cell.parentElement.children).indexOf(cell);
+
+    let final = newVal || old;
+
+    if (col === 4) {
+      const n = Number(newVal.replace(/[$,]/g, ''));
+
+      final = Number.isFinite(n) ? formatSalary(n) : old;
+    }
+
+    cell.textContent = final;
+    editing = null;
+  };
+
+  const cancelEdit = () => {
+    if (!editing) {
+      return;
+    }
+
+    const { cell, old } = editing;
+
+    cell.textContent = old;
+    editing = null;
+  };
+
+  // ---------- Row Selection ----------
   const attachRowListeners = () => {
     tbody.querySelectorAll('tr').forEach((row) => {
       row.onclick = () => {
@@ -123,55 +180,36 @@ document.addEventListener('DOMContentLoaded', () => {
 
   attachRowListeners();
 
-  //Inline Edit
-  let editing = null;
-
-  const startEdit = (cell) => {
+  // handle blur / enter / escape globally for inline edits
+  document.addEventListener('keydown', (e) => {
     if (editing) {
-      return;
-    }
+      const input = document.querySelector('.cell-input');
 
-    const old = cell.textContent.trim();
-    const input = document.createElement('input');
-
-    input.classList.add('cell-input');
-    input.value = old;
-
-    cell.textContent = '';
-    cell.appendChild(input);
-    input.focus();
-
-    editing = { cell, old };
-
-    const save = (val) => {
-      const newVal = val || old;
-      const col = Array.from(cell.parentElement.children).indexOf(cell);
-      let final = newVal;
-
-      if (col === 4) {
-        const n = Number(newVal.replace(/[$,]/g, ''));
-
-        final = isNaN(n) ? old : formatSalary(n);
+      if (!input) {
+        return;
       }
 
-      cell.textContent = final;
-      editing = null;
-    };
-
-    input.addEventListener('blur', () => save(input.value.trim()));
-
-    input.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
-        save(input.value.trim());
+        commitEdit(input);
       }
 
       if (e.key === 'Escape') {
-        save(old);
+        cancelEdit();
       }
-    });
-  };
+    }
+  });
 
-  //Form
+  document.addEventListener(
+    'blur',
+    (e) => {
+      if (e.target.classList.contains('cell-input')) {
+        commitEdit(e.target);
+      }
+    },
+    true,
+  );
+
+  // ---------- Form ----------
   const form = document.createElement('form');
 
   form.classList.add('new-employee-form');
@@ -205,7 +243,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const age = Number(form.querySelector('[data-qa="age"]').value);
     const salary = Number(form.querySelector('[data-qa="salary"]').value);
 
-    if (!pName || !position || !office || !age || !salary) {
+    const textMissing = pName === '' || position === '' || office === '';
+    const numberInvalid = !Number.isFinite(age) || !Number.isFinite(salary);
+
+    if (textMissing || numberInvalid) {
       showNotification('Error', 'All fields are required.', 'error');
 
       return;
